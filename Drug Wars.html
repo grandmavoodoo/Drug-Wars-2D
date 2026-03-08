@@ -1,0 +1,2124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Drug Wars — High Detail Edition</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root {
+      --bg-dark: #0d1117;
+      --panel-bg: rgba(22, 27, 34, 0.95);
+      --accent-green: #238636;
+      --accent-red: #da3633;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --border-color: #30363d;
+      --neon-blue: #58a6ff;
+      --calculator-bg: #1e1e1e;
+      --calculator-key: #3d3d3d;
+      --calculator-text: #ffff;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .frame-wrap {
+      position: relative;
+      max-width: 900px;
+      margin: 20px auto;
+      filter: drop-shadow(0 0 30px rgba(0,0,0,0.7));
+      transition: transform 0.3s ease;
+    }
+
+    .calculator-frame {
+      background: var(--calculator-bg);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .calculator-display {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #cfe29a 0%, #b3cc77 30%, #9fb56a 60%, #8aa657 100%);
+      box-shadow:
+        inset 0 6px 14px rgba(0,0,0,0.45),
+        inset 0 -6px 10px rgba(255,255,255,0.02),
+        0 12px 30px rgba(0,0,0,0.6);
+      border: 8px solid #0c0c0c;
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .calculator-display::before{
+      content: "";
+      position: absolute;
+      left: 0; right: 0; top: 0; bottom: 0;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0px, transparent 1px, transparent 12px, rgba(0,0,0,0.035) 12px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.035) 0px, transparent 1px, transparent 8px, rgba(0,0,0,0.035) 8px);
+      mix-blend-mode: multiply;
+      z-index: 20;
+      opacity: 0.95;
+    }
+
+    .calculator-display::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0;
+      height: 40%;
+      top: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .calculator-display canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      image-rendering: optimizeSpeed;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      z-index: 10;
+    }
+
+    .calculator-display .screen-badge {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: rgba(0,0,0,0.35);
+      z-index: 40;
+      letter-spacing: 1px;
+    }
+
+    .calculator-buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .calc-btn {
+      background: var(--calculator-key);
+      color: var(--calculator-text);
+      border: none;
+      border-radius: 5px;
+      padding: 15px 0;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.08s;
+      box-shadow: 0 3px 0 #222;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    .calc-btn:active,
+    .calc-btn.pressed {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #111;
+      opacity: 0.95;
+    }
+
+    .calc-btn.function {
+      background: #4a5bbf;
+    }
+
+    .calc-btn.enter {
+      background: #2a9a4a;
+      grid-row: span 2;
+    }
+
+    #hudPanel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 260px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      z-index: 999;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+
+    #hudPanel div { margin-bottom: 4px; }
+    #hudPanel hr { border: 0; border-top: 1px solid var(--border-color); margin: 15px 0; }
+
+    .hud-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .hud-value { color: var(--neon-blue); font-weight: bold; float: right; }
+
+    .status {
+      max-width: 900px;
+      margin: 15px auto;
+      color: var(--text-muted);
+      text-align: center;
+      font-size: 14px;
+      background: rgba(255,255,255,0.03);
+      padding: 10px;
+      border-radius: 20px;
+    }
+
+    .popup {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 30px;
+      border-radius: 16px;
+      color: var(--text-main);
+      min-width: 400px;
+      z-index: 1000;
+      box-shadow: 0 0 100px rgba(0,0,0,0.9);
+      animation: popupFade 0.3s ease-out;
+    }
+
+    @keyframes popupFade {
+      from { opacity: 0; transform: translate(-50%, -45%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    .popup button {
+      background: var(--accent-green);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: opacity 0.2s;
+    }
+
+    .popup button:hover { opacity: 0.9; }
+    .popup button#popupClose { background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); }
+    .popup button#popupClose:hover { background: var(--accent-red); color: white; }
+
+    .inventory-list {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    .market-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 0;
+    }
+
+    .item-price { color: #3fb950; font-weight: bold; font-family: monospace; }
+    .hidden { display: none !important; }
+
+    .police-warning {
+      color: var(--accent-red);
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(218, 54, 51, 0.5);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    #policeChaseOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    #policeChaseCanvas {
+      border: 2px solid #555;
+      background: #111;
+      margin-bottom: 20px;
+    }
+
+    #policeChaseTimer {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #58a6ff;
+    }
+
+    #policeChaseMessage {
+      font-size: 18px;
+      margin-bottom: 20px;
+      text-align: center;
+      max-width: 80%;
+    }
+
+    #policeChaseControls {
+      font-size: 14px;
+      color: #8b949e;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .dealer-card {
+      background: rgba(30, 30, 40, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+    }
+
+    .dealer-card h4 {
+      margin: 0 0 10px 0;
+      color: var(--neon-blue);
+    }
+
+    .dealer-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .dealer-cost {
+      color: #3fb950;
+      font-weight: bold;
+    }
+
+    .dealer-commission {
+      color: #f85149;
+      font-weight: bold;
+    }
+
+    .dealer-hired {
+      color: #3fb950;
+      font-weight: bold;
+      text-align: center;
+      padding: 5px;
+      background: rgba(35, 134, 54, 0.2);
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+
+
+<div id="hudPanel">
+  <div class="hud-row"><span class="hud-label">Day</span> <span class="hud-value" id="hudDay">1</span></div>
+  <div class="hud-row"><span class="hud-label">Time</span> <span class="hud-value" id="hudTime">00:00</span></div>
+  <hr>
+  <div class="hud-row"><span class="hud-label">Wallet</span> <span class="hud-value" id="hudWallet" style="color:#3fb950">$0</span></div>
+  <div class="hud-row"><span class="hud-label">Bank</span> <span class="hud-value" id="hudBank">$0</span></div>
+  <div class="hud-row"><span class="hud-label">Debt</span> <span class="hud-value" id="hudDebt" style="color:#f85149">$0</span></div>
+  <hr>
+  <div class="hud-row"><span class="hud-label">Inventory</span> <span class="hud-value" id="hudInventory">0/20</span></div>
+  <div id="hudJail" style="color:var(--accent-red); font-weight:bold; margin-top:8px; font-size:11px;"></div>
+  <hr>
+  <div style="font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+    [E] / [ENTER] to Enter Building<br>
+    [ARROWS] / A & D Move<br>
+    [P] Pause Game<br>
+    Game Objective: Pay Off Your Dedt<br>
+    Backgrond Music Volume:<br>
+    <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.5" title="Music Volume" aria-label="Music Volume Control" style="width: 260px; margin: 10px 20px 0 20px; display: block;">
+      <audio id="backgroundMusic" autoplay></audio>
+
+  </div>
+
+<div style="margin-top: 20px;">
+  <label for="infoDropdown" style="font-weight: bold; cursor: pointer;">Game Info ▼</label>
+  <select id="infoDropdown" style="width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color);">
+    <option value="">Select an option</option>
+    <option value="howToPlay">How to Play</option>
+    <option value="buildingInfo">What Each Building Does</option>
+  </select>
+  <div id="infoContent" style="margin-top: 10px; font-size: 12px; line-height: 1.4; color: var(--text-main); max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; white-space: pre-line; border: 1px solid var(--border-color);"></div>
+</div>
+
+<script>
+  const infoTexts = {
+    howToPlay: `Objective: Pay off your $42,000 debt to win.
+
+Movement: Use [A/D] or [Arrow Keys] to move left and right.
+Buildings: Press [E] or [ENTER] when near a building to enter.
+Selling: Go to the Bridges at the far left or right of the map to find customers.
+Police: If you carry too many items near bridges, police might chase you! Dodge them in the mini-game to escape jail.
+Hire Dealer: Dealer all taker their own cut. Use them to sell items faster.
+Time: Each day lasts 60 seconds. Prices change every morning.
+NOTE: You can run Form cop if you see them coming toward you at the bride.
+NOTE: You Can only sleep in Your Hous and in Jail.`,
+
+    buildingInfo: `Player House: Sleep to advance time or store up to 20 items safely.
+Warehouse: Buy for $4,200 to store up to 420 items, hired dealers will sell items from the warehouse.
+Bank: Store your cash safely (police can't take it) and pay off your debt.
+Police Station: Pay legal fees if you've been caught.
+Casino: Gamble your money for a chance to double it (45% win rate).
+Bridges: The only place to find customers and sell your product.`
+  };
+
+  document.getElementById('infoDropdown').addEventListener('change', function() {
+    const selected = this.value;
+    const contentDiv = document.getElementById('infoContent');
+    contentDiv.textContent = infoTexts[selected] || '';
+  });
+</script>
+  
+</div>
+
+
+
+<div class="frame-wrap">
+  <div class="calculator-frame">
+    <div class="calculator-display">
+      <canvas id="game" width="900" height="580"></canvas>
+      <div class="screen-badge">Drug Wars 2D: Made By Mr.SusBus</div>
+    </div>
+    <div class="calculator-buttons">
+      <button class="calc-btn function" data-action="enter-building">⤷ ENTER</button>      
+      <button class="calc-btn function" data-action="market">🏴 BLACK MARKET</button>
+      <!-- <button class="calc-btn function" data-action="warehouse">🗄️ WAREHOUSE</button> -->
+      <button class="calc-btn function" data-action="hire-dealers">🧑‍🤝‍🧑 DEALERS</button>
+      <button class="calc-btn function" data-action="bank">💳 BANK</button>
+
+      <button class="calc-btn function" data-action="sleep">🛌 SLEEP</button>
+      <button class="calc-btn function" data-action="pause">⏸️ PAUSE</button>
+      <button class="calc-btn function" data-action="save">💾 SAVE</button>
+      <button class="calc-btn function" data-action="load">📁 LOAD</button>
+      <button class="calc-btn function" data-action="left">←</button>
+      <button class="calc-btn function" data-action="right">→</button>
+
+
+       <!--  <button class="calc-btn enter" data-action="test-caught">TEST Caught</button> -->
+    </div>
+  </div>
+</div>
+
+<div class="status" id="status">Use ← → to move. Press ENTER to enter building. Go to bridges to sell.</div>
+
+<div id="popup" class="popup hidden">
+  <div id="popupTitle" style="font-weight:bold;margin-bottom:8px">Building</div>
+  <div id="popupContent"></div>
+  <div style="text-align:right;margin-top:12px"><button id="popupClose">Close</button></div>
+</div>
+
+<div id="policeChaseOverlay" class="hidden">
+  <div id="policeChaseTimer">15s</div>
+  <canvas id="policeChaseCanvas" width="800" height="400"></canvas>
+  <div id="policeChaseMessage">Dodge the cop cars! Use ↑/↓ arrows to move</div>
+  <div id="policeChaseControls">Controls: ↑/↓ Arrow Keys or W/S</div>
+</div>
+
+<script>
+
+
+
+function handleImageError(img) {
+    console.error('FAILED TO LOAD ASSET:', img.src);
+}
+
+// Background music playlist and shuffle logic
+const musicTracks = [
+  'assets/music/track1.mp3',
+  'assets/music/track2.mp3',
+  'assets/music/track3.mp3',
+  'assets/music/track4.mp3',
+  'assets/music/track5.mp3'
+];
+
+let currentTrackIndex = -1;
+const backgroundMusic = document.getElementById('backgroundMusic');
+const volumeControl = document.getElementById('volumeControl');
+
+function playRandomTrack() {
+  let nextIndex;
+  do {
+    nextIndex = Math.floor(Math.random() * musicTracks.length);
+  } while (nextIndex === currentTrackIndex && musicTracks.length > 1);
+  currentTrackIndex = nextIndex;
+  backgroundMusic.src = musicTracks[currentTrackIndex];
+  backgroundMusic.load();
+  backgroundMusic.play().catch(() => {
+    // Autoplay might be blocked, wait for user interaction
+    console.log('Autoplay blocked, waiting for user interaction to start music.');
+  });
+}
+
+backgroundMusic.addEventListener('ended', () => {
+  playRandomTrack();
+});
+
+volumeControl.addEventListener('input', (e) => {
+  backgroundMusic.volume = e.target.value;
+});
+
+// Initialize volume
+backgroundMusic.volume = volumeControl.value;
+
+// Attempt to play music on user interaction if autoplay is blocked
+function startMusicOnInteraction() {
+  backgroundMusic.play().catch(() => {
+    // Still blocked, do nothing
+  });
+  document.removeEventListener('click', startMusicOnInteraction);
+  document.removeEventListener('keydown', startMusicOnInteraction);
+}
+
+document.addEventListener('click', startMusicOnInteraction);
+document.addEventListener('keydown', startMusicOnInteraction);
+
+// Start playing the first random track
+playRandomTrack();
+
+const skyBackground = new Image();
+skyBackground.onerror = function() { handleImageError(this); }; skyBackground.src = 'assets/sky_background.jpg'; 
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let viewportWidth = canvas.clientWidth;
+let viewportHeight = canvas.clientHeight;
+
+function resizeGameCanvasToContainer() {
+  const container = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.floor(container.clientWidth);
+  const height = Math.floor(container.clientHeight);
+
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  canvas.width = Math.max(1, Math.floor(width * dpr));
+  canvas.height = Math.max(1, Math.floor(height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  viewportWidth = width;
+  viewportHeight = height;
+
+  if (player) {
+    player.y = Math.max(0, viewportHeight - 100);
+  }
+}
+
+window.addEventListener('resize', resizeGameCanvasToContainer);
+document.addEventListener('DOMContentLoaded', () => { resizeGameCanvasToContainer(); setTimeout(resizeGameCanvasToContainer, 50); });
+
+const assets = {
+  player: new Image(),
+  road: new Image(),
+  sidewalk: new Image(),
+  building_house: new Image(),
+  building_warehouse: new Image(),
+  building_bank: new Image(),
+  building_police: new Image(),
+  building_casino: new Image(),
+  bridge: new Image()
+};
+
+// Dealer skins
+const dealerSkins = [
+  new Image(), new Image(), new Image(), new Image(), new Image()
+];
+dealerSkins[0].onerror = function() { handleImageError(this); }; dealerSkins[0].src = 'assets/dealer1.png';
+dealerSkins[1].onerror = function() { handleImageError(this); }; dealerSkins[1].src = 'assets/dealer2.png';
+dealerSkins[2].onerror = function() { handleImageError(this); }; dealerSkins[2].src = 'assets/dealer3.png';
+dealerSkins[3].onerror = function() { handleImageError(this); }; dealerSkins[3].src = 'assets/dealer4.png';
+dealerSkins[4].onerror = function() { handleImageError(this); }; dealerSkins[4].src = 'assets/dealer5.png';
+
+// Removed npc_normal9.png from dealerSkins to fix skin issue
+// dealerSkins[4].onerror = function() { handleImageError(this); }; dealerSkins[4].src = 'assets/npc_normal9.png';
+
+const npcNormalSkins = [
+  new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()
+];
+npcNormalSkins[0].onerror = function() { handleImageError(this); }; npcNormalSkins[0].src = 'assets/npc_normal1.png';
+npcNormalSkins[1].onerror = function() { handleImageError(this); }; npcNormalSkins[1].src = 'assets/npc_normal2.png';
+npcNormalSkins[2].onerror = function() { handleImageError(this); }; npcNormalSkins[2].src = 'assets/npc_normal3.png';
+npcNormalSkins[3].onerror = function() { handleImageError(this); }; npcNormalSkins[3].src = 'assets/npc_normal4.png';
+npcNormalSkins[4].onerror = function() { handleImageError(this); }; npcNormalSkins[4].src = 'assets/npc_normal5.png';
+npcNormalSkins[5].onerror = function() { handleImageError(this); }; npcNormalSkins[5].src = 'assets/npc_normal6.png';
+npcNormalSkins[6].onerror = function() { handleImageError(this); }; npcNormalSkins[6].src = 'assets/npc_normal7.png';
+npcNormalSkins[7].onerror = function() { handleImageError(this); }; npcNormalSkins[7].src = 'assets/npc_normal8.png';
+npcNormalSkins[8].onerror = function() { handleImageError(this); }; npcNormalSkins[8].src = 'assets/npc_normal9.png';
+
+
+const npcPoliceSkins = [
+  new Image(), new Image()
+];
+npcPoliceSkins[0].onerror = function() { handleImageError(this); }; npcPoliceSkins[0].src = 'assets/npc_police1.png';
+npcPoliceSkins[1].onerror = function() { handleImageError(this); }; npcPoliceSkins[1].src = 'assets/npc_police2.png';
+
+const carNormalSkins = [
+  new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()
+];
+carNormalSkins[0].onerror = function() { handleImageError(this); }; carNormalSkins[0].src = 'assets/car_normal1.png';
+carNormalSkins[1].onerror = function() { handleImageError(this); }; carNormalSkins[1].src = 'assets/car_normal2.png';
+carNormalSkins[2].onerror = function() { handleImageError(this); }; carNormalSkins[2].src = 'assets/car_normal3.png';
+carNormalSkins[3].onerror = function() { handleImageError(this); }; carNormalSkins[3].src = 'assets/car_normal4.png';
+carNormalSkins[4].onerror = function() { handleImageError(this); }; carNormalSkins[4].src = 'assets/car_normal5.png';
+carNormalSkins[5].onerror = function() { handleImageError(this); }; carNormalSkins[5].src = 'assets/car_normal6.png';
+// Fixed carNormalSkins last image to proper car skin
+carNormalSkins[6].onerror = function() { handleImageError(this); }; carNormalSkins[6].src = 'assets/car_normal7.png';
+
+const carPoliceSkins = [
+  new Image(), new Image()
+];
+carPoliceSkins[0].onerror = function() { handleImageError(this); }; carPoliceSkins[0].src = 'assets/car_police1.png';
+carPoliceSkins[1].onerror = function() { handleImageError(this); }; carPoliceSkins[1].src = 'assets/car_police2.png';
+
+assets.playerJail = new Image();
+assets.playerJail.onerror = function() { handleImageError(this); }; assets.playerJail.src = 'assets/player_jail.png';
+
+assets.player.onerror = function() { handleImageError(this); }; assets.player.src = 'assets/player.png';
+assets.road.onerror = function() { handleImageError(this); }; assets.road.src = 'assets/road.png';
+assets.sidewalk.onerror = function() { handleImageError(this); }; assets.sidewalk.src = 'assets/sidewalk.png';
+assets.building_house.onerror = function() { handleImageError(this); }; assets.building_house.src = 'assets/building_house.png';
+assets.building_warehouse.onerror = function() { handleImageError(this); }; assets.building_warehouse.src = 'assets/building_warehouse.png';
+assets.building_bank.onerror = function() { handleImageError(this); }; assets.building_bank.src = 'assets/building_bank.png';
+assets.building_police.onerror = function() { handleImageError(this); }; assets.building_police.src = 'assets/building_police.png';
+assets.building_casino.onerror = function() { handleImageError(this); }; assets.building_casino.src = 'assets/building_casino.png';
+assets.bridge.onerror = function() { handleImageError(this); }; assets.bridge.src = 'assets/bridge.png';
+
+function isImageLoaded(img) { return img.complete && img.naturalHeight !== 0; }
+
+let lastTS = 0;
+let paused = false;
+let inPoliceChase = false;
+
+const WORLD_WIDTH = 4000;
+
+let player = {
+  x: 150,
+  y: 0,
+  w: 40,
+  h: 64,
+  speed: 170,
+  facing: 1
+};
+
+let keys = { left:false, right:false, up:false, down:false, interact:false };
+
+const BRIDGE_LEFT = 0;
+const BRIDGE_RIGHT = WORLD_WIDTH - 180;
+const POLICE_STATION_X = 2200;
+const PLAYER_HOUSE_X = 420; // Updated to match building X
+
+const buildings = [
+  {type:'house', x: 420, name:'Player House'},
+  {type:'warehouse', x: 800, name:'Warehouse', owned:false},
+  {type:'bank', x: 1500, name:'Bank'},
+  {type:'police', x: 2200, name:'Police Station'},
+  {type:'casino', x: 2900, name:'Casino'},
+];
+
+const BRIDGES = [{x: BRIDGE_LEFT, name:'Bridge'}, {x: BRIDGE_RIGHT, name:'Bridge'}];
+
+let inventory = { weed: 3, ak47s: 0, cocaine: 0, heroin: 0, lsd: 1, shrooms: 2, speed: 0, meth: 0, ludes: 0 };
+const INVENTORY_CAPACITY = 20;
+const PLAYER_HOUSE_STORAGE_CAPACITY = 20;
+const WAREHOUSE_STORAGE_CAPACITY = 420;
+const WAREHOUSE_COST = 4200;
+let playerHouseStorage = { weed: 0, ak47s: 0, cocaine: 0, heroin: 0, lsd: 0, shrooms: 0, speed: 0, meth: 0, ludes: 0 };
+let wallet = 420;
+let bankBalance = 0;
+let debt = 42000;
+let warehouseStorage = { weed: 0, ak47s: 0, cocaine: 0, heroin: 0, lsd: 0, shrooms: 0, speed: 0, meth: 0, ludes: 0 };
+let warehouseOwned = false;
+let jailDaysLeft = 0;
+let legalFees = 0;
+
+// Dealer system
+const DEALER_TYPES = [
+  { name: "Street Dealer", cost: 500, commission: 35 },
+  { name: "Mid-Level Dealer", cost: 1500, commission: 25 },
+  { name: "Professional Dealer", cost: 3000, commission: 15 },
+  { name: "Elite Dealer", cost: 6000, commission: 5 },
+];
+let hiredDealers = [];
+
+let market = {
+  weed: { buy: 80, sell: 100 },
+  ak47s: { buy: 1500, sell: 2000 },
+  cocaine: { buy: 2500, sell: 3500 },
+  heroin: { buy: 180, sell: 270 },
+  lsd: { buy: 100, sell: 160 },
+  shrooms: { buy: 90, sell: 140 },
+  speed: { buy: 110, sell: 170 },
+  meth: { buy: 130, sell: 200 },
+  ludes: { buy: 70, sell: 110 }
+};
+let dayDuration = 60000;
+let currentDay = 1;
+let dayElapsed = 0;
+let productsSoldToday = 0;
+let npcs = [];
+let npcTimer = 0;
+let selling = false;
+let transactionLock = false;
+let currentNegotiation = null;
+let policeVisible = false;
+let policeChaseTriggered = new Set();
+
+function rand(min, max){ return Math.random()*(max-min)+min; }
+function randint(min,max){ return Math.floor(rand(min,max+1)); }
+
+function getTotalItems() {
+  return Object.values(inventory).reduce((sum, qty) => sum + qty, 0);
+}
+
+function getPlayerHouseStorageTotal() {
+  return Object.values(playerHouseStorage).reduce((sum, qty) => sum + qty, 0);
+}
+
+function calcCamera(){
+  let camX = player.x - viewportWidth / 2;
+  camX = Math.max(0, Math.min(camX, WORLD_WIDTH - viewportWidth));
+  return {x: camX, y:0};
+}
+
+function getSkyColor(hour) {
+  const noonColor = { r: 159, g: 198, b: 255 };
+  const midnightColor = { r: 10, g: 10, b: 30 };
+  let distFromNoon = Math.abs(hour - 12);
+  if (distFromNoon > 12) distFromNoon = 24 - distFromNoon;
+  const t = distFromNoon / 12;
+  const r = Math.round(noonColor.r * (1 - t) + midnightColor.r * t);
+  const g = Math.round(noonColor.g * (1 - t) + midnightColor.g * t);
+  const b = Math.round(noonColor.b * (1 - t) + midnightColor.b * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+function draw(){
+  ctx.clearRect(0,0,viewportWidth,viewportHeight);
+  const cam = calcCamera();
+  const hour = Math.floor((dayElapsed / dayDuration) * 24);
+  
+  ctx.fillStyle = getSkyColor(hour);
+  ctx.fillRect(0,0,viewportWidth,viewportHeight);
+  
+  if (isImageLoaded(skyBackground)) {
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(skyBackground, 0, 0, viewportWidth, viewportHeight);
+    ctx.globalAlpha = 1.0;
+  }
+
+  const roadY = viewportHeight - 120;
+  const sidewalkY = roadY - 30;
+
+  if (isImageLoaded(assets.road)) {
+    const pattern = ctx.createPattern(assets.road, 'repeat');
+    ctx.save();
+    ctx.translate(-cam.x, roadY);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, WORLD_WIDTH, 120);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fillRect(-cam.x, roadY, WORLD_WIDTH, 120);
+  }
+
+  if (isImageLoaded(assets.sidewalk)) {
+    const pattern = ctx.createPattern(assets.sidewalk, 'repeat');
+    ctx.save();
+    ctx.translate(-cam.x, sidewalkY);
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, WORLD_WIDTH, 30);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#6b6b6b';
+    ctx.fillRect(-cam.x, sidewalkY, WORLD_WIDTH, 30);
+  }
+
+  const sidewalkHeight = 30;
+  const characterHeight = 64;
+
+  for(const b of buildings){
+    const bx = b.x - cam.x;
+    const buildingHeight = 160;
+    const by = sidewalkY - buildingHeight;
+    const buildingAsset = assets[`building_${b.type}`];
+    if (isImageLoaded(buildingAsset)) {
+      ctx.drawImage(buildingAsset, bx, by, 200, buildingHeight);
+    } else {
+      ctx.fillStyle = (b.type === 'police') ? '#c1cbe3' : '#d9c7a6';
+      ctx.fillRect(bx, by, 200, buildingHeight);
+      ctx.fillStyle = '#6b4f32';
+      ctx.fillRect(bx+84, by+110, 32, 50);
+    }
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(b.name, bx+10, by+20);
+  }
+
+  for(const br of BRIDGES){
+    const bx = br.x - cam.x;
+    const by = sidewalkY - 150;
+    if (isImageLoaded(assets.bridge)) {
+      ctx.save();
+      if (br.x === BRIDGE_RIGHT) {
+        ctx.translate(bx + 200, by);
+        ctx.scale(-1, 1);
+        ctx.drawImage(assets.bridge, 0, 0, 200, 150);
+      } else {
+        ctx.drawImage(assets.bridge, bx, by, 200, 150);
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#8fa';
+      ctx.fillRect(bx, by, 200, 160);
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('BRIDGE', bx + 70, by + 80);
+    }
+  }
+
+  policeVisible = false;
+  for(const n of npcs){
+    const nx = n.x - cam.x;
+    if(n.type === 'police' && nx > -100 && nx < viewportWidth + 100) policeVisible = true;
+
+    if(n.inCar){
+      const carAsset = n.type === 'police' ? carPoliceSkins[n.carSkinIndex] : carNormalSkins[n.carSkinIndex];
+      const carYCenter = roadY + 10;
+      const carYOffset = 20;
+      const carY = n.dir === 1 ? carYCenter - carYOffset : carYCenter + carYOffset;
+      if (isImageLoaded(carAsset)) {
+        ctx.save();
+        if (n.dir === -1) {
+          ctx.translate(nx + 32, carY);
+          ctx.scale(-1, 1);
+          ctx.drawImage(carAsset, 0, 0, 128, 64);
+        } else {
+          ctx.drawImage(carAsset, nx, carY, 128, 64);
+        }
+        ctx.restore();
+      } else {
+        ctx.fillStyle = n.type === 'police' ? '#00f' : '#444';
+        ctx.fillRect(nx, carY, 64, 32);
+      }
+    } else {
+      if(n.negotiating) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath();
+        ctx.arc(nx + 16, sidewalkY - 45, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Fixed dealer skin selection with proper validation
+      let npcAsset;
+      if (n.type === 'police') {
+        const skinIndex = typeof n.skinIndex === 'number' ? n.skinIndex : 0;
+        npcAsset = npcPoliceSkins[skinIndex % npcPoliceSkins.length];
+      } else if (n.type === 'dealer') {
+        // Ensure skinIndex is valid and use modulo to prevent out-of-bounds
+        const skinIndex = typeof n.skinIndex === 'number' ? n.skinIndex : 0;
+        npcAsset = dealerSkins[skinIndex % dealerSkins.length];
+      } else {
+        const skinIndex = typeof n.skinIndex === 'number' ? n.skinIndex : 0;
+        npcAsset = npcNormalSkins[skinIndex % npcNormalSkins.length];
+      }
+      
+      if (isImageLoaded(npcAsset)) {
+        ctx.save();
+        if (n.dir === -1) {
+          ctx.translate(nx + 32, sidewalkY - (sidewalkHeight / 2) - (characterHeight / 2));
+          ctx.scale(-1, 1);
+          ctx.drawImage(npcAsset, 0, 0, 32, characterHeight);
+        } else {
+          ctx.drawImage(npcAsset, nx, sidewalkY - (sidewalkHeight / 2) - (characterHeight / 2), 32, characterHeight);
+        }
+        ctx.restore();
+      } else {
+        ctx.fillStyle = n.type==='police' ? '#0b5' : 
+                    n.type==='dealer' ? '#ff6b6b' : 
+                    '#ffeb8f';
+        ctx.fillRect(nx, sidewalkY - (sidewalkHeight / 2) - (characterHeight / 2), 32, characterHeight);
+      }
+    }
+  }
+
+  const px = player.x - cam.x;
+  const characterY = sidewalkY - (sidewalkHeight / 2) - (characterHeight / 2);
+  if (jailDaysLeft > 0 && isImageLoaded(assets.playerJail)) {
+    ctx.save();
+    if (player.facing === -1) {
+      ctx.translate(px + player.w, characterY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(assets.playerJail, 0, 0, player.w, player.h);
+    } else {
+      ctx.drawImage(assets.playerJail, px, characterY, player.w, player.h);
+    }
+    ctx.restore();
+  } else if (isImageLoaded(assets.player)) {
+    ctx.save();
+    if (player.facing === -1) {
+      ctx.translate(px + player.w, characterY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(assets.player, 0, 0, player.w, player.h);
+    } else {
+      ctx.drawImage(assets.player, px, characterY, player.w, player.h);
+    }
+    ctx.restore();
+  } else {
+    ctx.fillStyle = jailDaysLeft > 0 ? '#f66' : '#fff';
+    ctx.fillRect(px, characterY, player.w, player.h);
+  }
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('You', px-8, characterY-10);
+}
+
+function tick(ts){
+  if(!lastTS) lastTS = ts;
+  const dt = (ts - lastTS) / 1000.0;
+  lastTS = ts;
+
+  if(!inPoliceChase && !paused){
+    update(dt);
+  }
+
+  draw();
+  updateHUD();
+  requestAnimationFrame(tick);
+}
+
+function update(dt){
+  dayElapsed += dt*1000;
+  if(dayElapsed >= dayDuration){
+    dayElapsed -= dayDuration;
+    nextDay();
+  }
+
+  if(jailDaysLeft <= 0){
+    if(keys.left) { player.x -= player.speed * dt; player.facing = -1;}
+    if(keys.right){ player.x += player.speed * dt; player.facing = 1;}
+  }
+  player.x = Math.max(0, Math.min(player.x, WORLD_WIDTH - player.w));
+
+  npcTimer -= dt;
+  if(npcTimer <= 0){
+    npcTimer = rand(0.6, 1.8);
+    spawnNPC();
+  }
+
+  for (const n of npcs) {
+    if (n.type === 'police' && !n.inCar) {
+      const nearPlayerX = Math.abs(n.x - player.x) < 50;
+      const nearBridge = isPlayerAtBridge();
+      const totalItems = getTotalItems();
+      const policeId = `${n.x}_${n.dir}`;
+
+      // Prevent triggering a chase if one is already running
+      if (inPoliceChase) {
+        continue;
+      }
+
+      // Prevent triggering if still in cooldown after a successful escape
+      const now = Date.now();
+      if (now - lastPoliceChaseEscapeTime < POLICE_CHASE_COOLDOWN) {
+        continue;
+      }
+
+      if (nearPlayerX && nearBridge && totalItems > 3 && jailDaysLeft <= 0) {
+        if (!policeChaseTriggered.has(policeId)) {
+          const extraItems = totalItems - 3;
+          const catchChance = 10 + Math.floor(extraItems / 2);
+          if (Math.random() * 100 < catchChance) {
+            policeChaseTriggered.add(policeId);
+            triggerPoliceChase();
+            break;
+          }
+        }
+      }
+    }
+    
+    // Update dealer positions
+    if (n.type === 'dealer') {
+      // Dealers walk up and down the sidewalk
+      n.x += (n.dir * 40) * dt;
+      
+      // Change direction randomly or when reaching edges
+      if (Math.random() < 0.01 || n.x < 100 || n.x > WORLD_WIDTH - 100) {
+        n.dir = n.dir * -1;
+      }
+      
+      // Occasionally try to sell to customers
+      if (Math.random() < 0.005 && !n.selling) {
+        n.selling = true;
+        setTimeout(() => {
+          dealerSellProduct(n);
+          n.selling = false;
+        }, 2000);
+      }
+    }
+  }
+
+  for(const n of npcs){
+    if(n.inCar){
+      if(!transactionLock && n.wantsToBuy && !n.negotiating){
+        if(Math.abs(n.x - player.x) < 50 && isPlayerAtBridge()){
+          if(!selling && jailDaysLeft <= 0){
+            n.negotiating = true;
+            startNegotiation(n);
+          } else {
+            n.wantsToBuy = false;
+            n.dir = n.dir * -1;
+          }
+        } else {
+          n.x += (n.dir*150) * dt;
+        }
+      } else if(!n.negotiating) {
+        n.x += (n.dir*150) * dt;
+      }
+      if(n.x < -100 || n.x > WORLD_WIDTH+100){ n.dead = true; }
+    } else if (n.type !== 'dealer') { // Regular NPCs (not dealers)
+      if(!transactionLock && n.wantsToBuy && !n.negotiating){
+        if(Math.abs(n.x - player.x) < 50 && isPlayerAtBridge()){
+          if(!selling && jailDaysLeft <= 0){
+            n.negotiating = true;
+            startNegotiation(n);
+          } else {
+            n.wantsToBuy = false;
+            n.dir = n.dir * -1;
+          }
+        } else {
+          n.x += (n.dir*60) * dt;
+        }
+      } else if(!n.negotiating) {
+        n.x += (n.dir*60) * dt;
+      }
+      if(n.x < -100 || n.x > WORLD_WIDTH+100) n.dead = true;
+    }
+  }
+  npcs = npcs.filter(n => !n.dead);
+}
+
+function spawnNPC(){
+  const spawnAtLeft = Math.random() < 0.5;
+  const inCar = Math.random() < 0.45;
+  const dir = spawnAtLeft ? 1 : -1;
+  const startX = spawnAtLeft ? -100 : WORLD_WIDTH + 100;
+  const wantsToBuy = Math.random() < 0.15;
+  const bridgeAt = Math.random() < 0.5 ? BRIDGE_LEFT + 100 : BRIDGE_RIGHT + 100;
+  const isPolice = Math.random() < 0.08;
+
+  const skinIndex = Math.floor(Math.random() * (isPolice ? npcPoliceSkins.length : npcNormalSkins.length));
+  const carSkinIndex = Math.floor(Math.random() * (isPolice ? carPoliceSkins.length : carNormalSkins.length));
+
+  npcs.push({
+    x: startX,
+    dir,
+    inCar,
+    wantsToBuy,
+    bridgeAt,
+    type: isPolice ? 'police' : 'customer',
+    dead: false,
+    negotiating: false,
+    skinIndex,
+    carSkinIndex
+  });
+}
+
+// Spawn a dealer NPC - Fixed to properly assign skinIndex
+function spawnDealer(dealer) {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const startX = Math.random() * (WORLD_WIDTH - 200) + 100;
+  
+  // Validate typeIndex and assign skinIndex properly
+  const typeIndex = typeof dealer.typeIndex === 'number' ? dealer.typeIndex : 0;
+  const skinIndex = typeIndex; // Use typeIndex as skinIndex for dealers
+
+  npcs.push({
+    x: startX,
+    dir: dir,
+    type: 'dealer',
+    dead: false,
+    skinIndex: skinIndex,
+    selling: false,
+    dealerData: dealer
+  });
+  
+  console.log(`Spawned dealer with typeIndex: ${typeIndex}, skinIndex: ${skinIndex}`);
+}
+
+function isPlayerAtBridge(){
+  return (
+    (player.x >= BRIDGE_LEFT && player.x <= BRIDGE_LEFT + 200) ||
+    (player.x >= BRIDGE_RIGHT && player.x <= BRIDGE_RIGHT + 200)
+  );
+}
+
+let lastPoliceChaseEscapeTime = 0;
+const POLICE_CHASE_COOLDOWN = 60000; // 1 minute in milliseconds
+
+function triggerPoliceChase() {
+  // Safety: don't trigger multiple times
+  if (inPoliceChase) return;
+  const now = Date.now();
+  if (now - lastPoliceChaseEscapeTime < POLICE_CHASE_COOLDOWN) return;
+
+  const totalItems = getTotalItems();
+  const fine = totalItems * 50 + 200;
+
+  showStatus(`BUSTED! Police are chasing you! Dodge for 15 seconds to escape!`, true);
+  updateHUD();
+
+  inPoliceChase = true;
+  paused = true;
+
+  startPoliceChaseMiniGame({
+    duration: 15,
+    onWin: function(){
+      // Win: clear chase state, set cooldown, no jail
+      inPoliceChase = false;
+      paused = false;
+      lastPoliceChaseEscapeTime = Date.now(); // Set cooldown start time
+      showStatus('You escaped the cop chase! No jail this time.');
+      updateHUD();
+      // Clear triggers so same police can later re-trigger after cooldown if desired
+      policeChaseTriggered.clear();
+    },
+    onLose: function(){
+      // Lose: confiscate goods, apply fees, send to jail
+      inPoliceChase = false;
+      paused = false;
+
+      wallet = 0;
+      legalFees += fine;
+      for (const product in inventory) {
+        inventory[product] = 0;
+      }
+
+      jailDaysLeft = 7;
+      player.x = POLICE_STATION_X;
+      showStatus(`Crashed! Police jailed you for 7 days and kept your goods. Fine: $${fine}`, true);
+      updateHUD();
+      policeChaseTriggered.clear();
+    }
+  });
+}
+
+function checkForPoliceEncounter(){
+  if (inPoliceChase) return false; // Prevent starting a new chase if one is already active
+
+  const now = Date.now();
+  if (now - lastPoliceChaseEscapeTime < POLICE_CHASE_COOLDOWN) {
+    return false; // Still in cooldown
+  }
+
+  if(policeVisible && isPlayerAtBridge() && productsSoldToday > 5 && jailDaysLeft <= 0) {
+    if(Math.random() < 0.15) {
+      triggerPoliceChase();
+      return true;
+    }
+  }
+  return false;
+}
+
+function startPoliceChaseMiniGame(options) {
+  const duration = options.duration || 15;
+  const onWin = options.onWin || function(){};
+  const onLose = options.onLose || function(){};
+
+  const overlay = document.getElementById('policeChaseOverlay');
+  const timerElement = document.getElementById('policeChaseTimer');
+  const messageElement = document.getElementById('policeChaseMessage');
+  const chaseCanvas = document.getElementById('policeChaseCanvas');
+  const chaseCtx = chaseCanvas.getContext('2d');
+
+  let gameState = {
+    player: { x: 50, y: chaseCanvas.height / 2, width: 30, height: 15, speed: 300 },
+    cops: [], keys: { up: false, down: false },
+    timeLeft: duration, lastTime: 0, copSpawnTimer: 0, gameOver: false, win: false
+  };
+
+  overlay.classList.remove('hidden');
+  messageElement.textContent = "Dodge the cop cars! Use ↑/↓ arrows to move";
+  timerElement.textContent = `${Math.ceil(gameState.timeLeft)}s`;
+
+  const keyDownHandler = function(e) {
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') gameState.keys.up = true;
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') gameState.keys.down = true;
+  };
+  const keyUpHandler = function(e) {
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') gameState.keys.up = false;
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') gameState.keys.down = false;
+  };
+  document.addEventListener('keydown', keyDownHandler);
+  document.addEventListener('keyup', keyUpHandler);
+
+  function spawnCop() {
+    const shouldTarget = Math.random() < 0.15;
+    gameState.cops.push({
+      x: chaseCanvas.width,
+      y: shouldTarget ? gameState.player.y : Math.random() * (chaseCanvas.height - 30),
+      width: 30,
+      height: 15,
+      speed: 150 + Math.random() * 100,
+      targeted: shouldTarget
+    });
+  }
+
+  function spawnMultipleCops(count) { for(let i=0;i<count;i++) spawnCop(); }
+
+  function checkCollision(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.width &&
+           rect1.x + rect1.width > rect2.x &&
+           rect1.y < rect2.y + rect2.height &&
+           rect1.y + rect1.height > rect2.y;
+  }
+
+  function gameLoop(timestamp) {
+    if(gameState.gameOver) {
+      document.removeEventListener('keydown', keyDownHandler);
+      document.removeEventListener('keyup', keyUpHandler);
+      // Call the callback (either onWin or onLose) exactly once
+      if(gameState.win) onWin(); else onLose();
+      setTimeout(()=> overlay.classList.add('hidden'), 1000);
+      return;
+    }
+    if(!gameState.lastTime) gameState.lastTime = timestamp;
+    const deltaTime = (timestamp - gameState.lastTime) / 1000;
+    gameState.lastTime = timestamp;
+    gameState.timeLeft -= deltaTime;
+    timerElement.textContent = `${Math.ceil(gameState.timeLeft)}s`;
+
+    // Check win condition first (survived the chase)
+    if(gameState.timeLeft <= 0) {
+      gameState.gameOver = true;
+      gameState.win = true;
+      messageElement.textContent = "You escaped! Returning to game...";
+      return requestAnimationFrame(gameLoop);
+    }
+
+    // Handle player movement
+    if(gameState.keys.up) gameState.player.y -= gameState.player.speed * deltaTime;
+    if(gameState.keys.down) gameState.player.y += gameState.player.speed * deltaTime;
+    gameState.player.y = Math.max(0, Math.min(chaseCanvas.height - gameState.player.height, gameState.player.y));
+
+    // Spawn cops
+    gameState.copSpawnTimer -= deltaTime;
+    if(gameState.copSpawnTimer <= 0) {
+      const copsToSpawn = 2 + Math.floor(Math.random() * 3);
+      spawnMultipleCops(copsToSpawn);
+      gameState.copSpawnTimer = 0.3 + Math.random() * 1.0;
+    }
+
+    // Update cops and check for collisions
+    for(let i = gameState.cops.length - 1; i >= 0; i--) {
+      const cop = gameState.cops[i];
+      cop.x -= cop.speed * deltaTime;
+      if(cop.targeted) {
+        const dy = gameState.player.y - cop.y;
+        cop.y += dy * deltaTime * 2;
+      }
+      if(cop.x + cop.width < 0) {
+        gameState.cops.splice(i,1);
+        continue;
+      }
+      if(checkCollision(gameState.player, cop)) {
+        gameState.gameOver = true;
+        gameState.win = false;
+        messageElement.textContent = "Caught! Going to jail...";
+        return requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // Render
+    chaseCtx.clearRect(0,0,chaseCanvas.width,chaseCanvas.height);
+    chaseCtx.fillStyle = '#333';
+    chaseCtx.fillRect(0,0,chaseCanvas.width,chaseCanvas.height);
+    chaseCtx.fillStyle = '#555';
+    for(let i=0;i<chaseCanvas.height;i+=40) chaseCtx.fillRect(chaseCanvas.width/2-2, i, 4, 20);
+
+    chaseCtx.font = '20px Arial';
+    chaseCtx.fillText('🏎️', gameState.player.x, gameState.player.y + 15);
+    for(const cop of gameState.cops) chaseCtx.fillText('🚓', cop.x, cop.y + 15);
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+function startNegotiation(npc){
+  if(transactionLock) return;
+  transactionLock = true;
+  selling = true;
+
+  const availableProducts = Object.keys(inventory).filter(p => inventory[p] > 0);
+  if (availableProducts.length === 0) {
+    showStatus("Customer wanted to buy, but you're out of stock!");
+    npc.wantsToBuy = false; npc.negotiating = false;
+    setTimeout(() => { transactionLock = false; selling = false; npc.dead = true; }, 1500);
+    return;
+  }
+  const product = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+  const amount = Math.min(inventory[product], randint(1,3));
+  const marketPrice = market[product].sell;
+  const offerVariation = rand(-0.1, 0.3);
+  const customerOffer = Math.round(marketPrice * (1 + offerVariation));
+  currentNegotiation = { npc, product, amount, customerOffer, marketPrice };
+  showNegotiationPopup(product, amount, customerOffer);
+}
+
+function showNegotiationPopup(product, amount, offer){
+  const popup = document.getElementById('popup');
+  const popupTitle = document.getElementById('popupTitle');
+  const popupContent = document.getElementById('popupContent');
+  popupTitle.textContent = 'Customer Offer';
+  popupContent.innerHTML = `
+    <div class="negotiation-popup">
+      <div>Wants to buy ${amount} ${product}</div>
+      <div class="offer-value">$${offer} per unit</div>
+      <div>Total: $${offer * amount}</div>
+      <div class="accept-chance" id="acceptChance">Accept Chance: 100%</div>
+      <div style="margin:15px 0">
+        Your counter offer:
+        $<input type="number" id="counterOffer" class="counter-input" value="${offer}" min="1" max="1000">
+      </div>
+      <div>
+        <button id="acceptBtn" style="margin-right:10px">Accept</button>
+        <button id="counterBtn" style="margin-right:10px">Counter</button>
+        <button id="rejectBtn">Reject</button>
+      </div>
+    </div>
+  `;
+  popup.classList.remove('hidden');
+  const counterInput = document.getElementById('counterOffer');
+  const acceptChanceEl = document.getElementById('acceptChance');
+  counterInput.addEventListener('input', function() {
+    const counterValue = parseInt(this.value) || 0;
+    const chance = calculateAcceptChance(offer, counterValue);
+    acceptChanceEl.textContent = `Accept Chance: ${chance}%`;
+  });
+  document.getElementById('acceptBtn').onclick = () => completeTransaction(offer);
+  document.getElementById('counterBtn').onclick = () => {
+    const counterValue = parseInt(counterInput.value) || 0;
+    processCounterOffer(counterValue);
+  };
+  document.getElementById('rejectBtn').onclick = rejectOffer;
+}
+
+function calculateAcceptChance(originalOffer, counterOffer){
+  const diff = counterOffer - originalOffer;
+  if (diff <= 0) return 100;
+  let chance = 90 - ((diff / 2) * 3);
+  return Math.max(5, Math.min(95, Math.round(chance)));
+}
+
+function processCounterOffer(counterValue){
+  if(!currentNegotiation) return;
+  const {npc, product, amount, customerOffer} = currentNegotiation;
+  const acceptChance = calculateAcceptChance(customerOffer, counterValue);
+  const accepted = Math.random() * 100 < acceptChance;
+  if(accepted) {
+    completeTransaction(counterValue);
+  } else {
+    showStatus(`Customer rejected your counter offer of $${counterValue}`);
+    closePopup();
+    setTimeout(() => {
+      transactionLock = false; selling = false; npc.negotiating = false; npc.wantsToBuy = false; npc.dir = npc.dir * -1;
+    }, 1000);
+  }
+}
+
+function rejectOffer(){
+  if(!currentNegotiation) return;
+  const {npc} = currentNegotiation;
+  showStatus("You rejected the offer");
+  closePopup();
+  setTimeout(() => {
+    transactionLock = false; selling = false; npc.negotiating = false; npc.wantsToBuy = false; npc.dir = npc.dir * -1;
+  }, 1000);
+}
+
+function completeTransaction(pricePerUnit){
+  if(!currentNegotiation) return;
+  const {npc, product, amount} = currentNegotiation;
+  const total = pricePerUnit * amount;
+  wallet += total;
+  inventory[product] -= amount;
+  productsSoldToday += amount;
+  showStatus(`Sold ${amount} ${product} for $${total} ($${pricePerUnit} each)`);
+  closePopup();
+  const wasCaught = checkForPoliceEncounter();
+  setTimeout(() => { transactionLock = false; selling = false; npc.negotiating = false; npc.dead = true; }, 1000);
+}
+
+function closePopup(){ document.getElementById('popup').classList.add('hidden'); currentNegotiation = null; }
+
+// Dealer sells product from warehouse
+function dealerSellProduct(dealer) {
+  // Check if warehouse has products
+  const warehouseProducts = Object.keys(warehouseStorage).filter(p => warehouseStorage[p] > 0);
+  
+  if (warehouseProducts.length === 0) {
+    return; // No products to sell
+  }
+  
+  // Select random product from warehouse
+  const product = warehouseProducts[Math.floor(Math.random() * warehouseProducts.length)];
+  const amount = Math.min(warehouseStorage[product], randint(1, 3));
+  
+  if (amount <= 0) return;
+  
+  // Calculate sale with dealer commission
+  const marketPrice = market[product].sell;
+  const commissionRate = dealer.dealerData.commission / 100;
+  const totalPrice = amount * marketPrice;
+  const commission = totalPrice * commissionRate;
+  const playerEarnings = totalPrice - commission;
+  
+  // Update warehouse and wallet
+  warehouseStorage[product] -= amount;
+  wallet += playerEarnings;
+  
+  // Show status message
+  showStatus(`Dealer sold ${amount} ${product} for $${playerEarnings.toFixed(0)} (Commission: $${commission.toFixed(0)})`);
+}
+
+function nextDay(){
+  currentDay++; productsSoldToday = 0;
+  if (currentDay % 7 === 0) { debt = Math.round(debt * 1.1); showStatus("Weekly interest added to your debt!", true); }
+  for(const item of Object.keys(market)){
+    const buyChange = rand(-0.2, 0.25);
+    const sellChange = rand(-0.15, 0.2);
+    market[item].buy = Math.max(20, Math.round(market[item].buy * (1 + buyChange)));
+    market[item].sell = Math.max(market[item].buy + randint(10, 50), Math.round(market[item].sell * (1 + sellChange)));
+  }
+  if(jailDaysLeft > 0){ jailDaysLeft = Math.max(0, jailDaysLeft - 1); if(jailDaysLeft === 0) showStatus('Released from jail. Pay legal fees at Police Station.'); }
+}
+
+function showStatus(msg, isWarning = false){
+  const s = document.getElementById('status');
+  s.textContent = msg;
+  if(isWarning) { s.classList.add('police-warning'); setTimeout(() => s.classList.remove('police-warning'), 3000); }
+  setTimeout(()=>{ s.textContent = `Day ${currentDay} | Use ← → to move. Press ENTER to enter building.`; }, 5000);
+}
+
+function updateHUD(){
+  document.getElementById('hudDay').textContent = `Day: ${currentDay}`;
+  const hour = Math.floor((dayElapsed/dayDuration)*24);
+  document.getElementById('hudTime').textContent = `Time: ${hour.toString().padStart(2,'0')}:00`;
+  document.getElementById('hudWallet').textContent = `Wallet: $${wallet.toFixed(0)}`;
+  document.getElementById('hudBank').textContent = `Bank: $${bankBalance.toFixed(0)}`;
+  document.getElementById('hudDebt').textContent = `Debt: $${debt.toFixed(0)}`;
+  const totalItems = getTotalItems();
+  const inventoryText = `Inventory: ${totalItems}/${INVENTORY_CAPACITY}`;
+  const inventoryElement = document.getElementById('hudInventory');
+  inventoryElement.textContent = inventoryText;
+  if(totalItems >= INVENTORY_CAPACITY) inventoryElement.classList.add('warning'); else inventoryElement.classList.remove('warning');
+  document.getElementById('hudJail').textContent = jailDaysLeft > 0 ? `IN JAIL: ${jailDaysLeft} days left. Fees: $${legalFees.toFixed(0)}` : (legalFees > 0 ? `Legal Fees: $${legalFees.toFixed(0)}` : '');
+}
+
+function handleCalcButtonAction(action, el) {
+  switch(action) {
+    case 'enter-building': tryEnterBuilding(); break;
+    case 'save': saveGame(); break;
+    case 'load': loadGame(); break;
+    case 'market': openBlackMarket(); break;
+    case 'warehouse': openBuildingUI(buildings.find(b=>b.type==='warehouse')); break;
+    case 'bank': openBuildingUI(buildings.find(b=>b.type==='bank')); break;
+    case 'hire-dealers': openHireDealersUI(); break;
+    case 'sleep': 
+      // Check if player is in jail or next to house
+      const isNearHouse = Math.abs(PLAYER_HOUSE_X - player.x) < 120;
+      if (jailDaysLeft > 0 || isNearHouse) {
+        nextDay(); 
+        showStatus('You slept and advanced one day.'); 
+      } else {
+        showStatus('You can only sleep at home or in jail.');
+      }
+      break;
+    case 'pause': paused = !paused; el.textContent = paused ? 'RESUME' : 'PAUSE'; break;
+    case 'test-caught': testCaught(); break;
+  }
+}
+
+document.querySelectorAll('.calc-btn').forEach(btn => {
+  const action = btn.getAttribute('data-action');
+
+  if(action === 'left' || action === 'right' || action === 'up' || action === 'down') {
+    btn.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      try { btn.setPointerCapture(ev.pointerId); } catch(e){}
+      if(action === 'left') keys.left = true;
+      if(action === 'right') keys.right = true;
+      btn.classList.add('pressed');
+    });
+
+    btn.addEventListener('pointerup', (ev) => {
+      try { btn.releasePointerCapture(ev.pointerId); } catch(e){}
+      if(action === 'left') keys.left = false;
+      if(action === 'right') keys.right = false;
+      btn.classList.remove('pressed');
+    });
+
+    btn.addEventListener('pointercancel', () => {
+      if(action === 'left') keys.left = false;
+      if(action === 'right') keys.right = false;
+      btn.classList.remove('pressed');
+    });
+
+    btn.addEventListener('pointerleave', () => {
+      if(action === 'left') keys.left = false;
+      if(action === 'right') keys.right = false;
+      btn.classList.remove('pressed');
+    });
+
+    btn.addEventListener('click', (e) => e.preventDefault());
+  } else {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleCalcButtonAction(action, btn);
+      btn.classList.add('pressed');
+      setTimeout(()=>btn.classList.remove('pressed'), 110);
+    });
+  }
+});
+
+document.addEventListener('keydown', e=>{
+  if(e.key === 'a' || e.key === 'A') keys.left = true;
+  if(e.key === 'd' || e.key === 'D') keys.right = true;
+  if(e.key === 'e' || e.key === 'E') tryEnterBuilding();
+  if(e.key === 'ArrowLeft') keys.left = true;
+  if(e.key === 'ArrowRight') keys.right = true;
+  if(e.key === 'Enter') tryEnterBuilding();
+  if(e.key === 'p' || e.key === 'P') {
+    paused = !paused;
+    const pauseBtn = document.querySelector('[data-action="pause"]');
+    if(pauseBtn) pauseBtn.textContent = paused ? 'RESUME' : 'PAUSE';
+  }
+});
+document.addEventListener('keyup', e=>{
+  if(e.key === 'a' || e.key === 'A') keys.left = false;
+  if(e.key === 'd' || e.key === 'D') keys.right = false;
+  if(e.key === 'ArrowLeft') keys.left = false;
+  if(e.key === 'ArrowRight') keys.right = false;
+});
+
+function tryEnterBuilding(){
+  const near = buildings.find(b => Math.abs(b.x - player.x) < 120);
+  if(near) openBuildingUI(near); else showStatus('No building nearby.');
+}
+
+const popup = document.getElementById('popup');
+const popupTitle = document.getElementById('popupTitle');
+const popupContent = document.getElementById('popupContent');
+document.getElementById('popupClose').addEventListener('click', ()=>{ popup.classList.add('hidden'); if(currentNegotiation) rejectOffer(); });
+popup.classList.add('hidden');
+
+function openBuildingUI(b){
+  popupTitle.textContent = b.name;
+  popupContent.innerHTML = '';
+
+  if(jailDaysLeft > 0 && b.type !== 'police' && b.type !== 'bank') {
+    popupContent.innerHTML = `<div class="row"><div>You are currently in jail!</div></div>`;
+    popup.classList.remove('hidden');
+    return;
+  }
+
+  if(b.type === 'house'){
+    let optionsHtml = '';
+    for (const product in inventory) {
+      optionsHtml += `<option value="${product}">${product.charAt(0).toUpperCase() + product.slice(1)}</option>`;
+    }
+    popupContent.innerHTML = `
+      <div class="row"><div>Sleep to advance 1 day</div><button id="doSleep">Sleep</button></div>
+      <div class="row"><div>Inventory</div><div class="inventory-list">${renderInventory(false, true)}</div></div>
+      <div class="row" style="margin-top:10px;">
+        <div>Manage Storage</div>
+        <div style="margin-bottom:5px;">
+          Product:
+          <select id="houseProductSelect">
+            ${optionsHtml}
+          </select>
+        </div>
+        <button id="storeToHouse">Store 1</button>
+        <button id="retrieveFromHouse">Retrieve 1</button>
+      </div>
+    `;
+    popup.classList.remove('hidden');
+    document.getElementById('doSleep').onclick = () => { popup.classList.add('hidden'); nextDay(); showStatus('You slept and advanced one day.'); };
+    document.getElementById('storeToHouse').onclick = () => {
+      const product = document.getElementById('houseProductSelect').value;
+      if (getPlayerHouseStorageTotal() >= PLAYER_HOUSE_STORAGE_CAPACITY) { showStatus('Player house storage is full!'); return; }
+      if (inventory[product] > 0) {
+        inventory[product]--;
+        playerHouseStorage[product]++;
+        showStatus(`Stored 1 ${product} in player house storage.`);
+      } else showStatus(`No ${product} in inventory to store.`);
+      popupContent.querySelector('.inventory-list').innerHTML = renderInventory(false, true);
+    };
+    document.getElementById('retrieveFromHouse').onclick = () => {
+      const product = document.getElementById('houseProductSelect').value;
+      if (getTotalItems() >= INVENTORY_CAPACITY) { showStatus('Inventory is full!'); return; }
+      if (playerHouseStorage[product] > 0) {
+        playerHouseStorage[product]--;
+        inventory[product]++;
+        showStatus(`Retrieved 1 ${product} from player house storage.`);
+      } else showStatus(`No ${product} in player house storage to retrieve.`);
+      popupContent.querySelector('.inventory-list').innerHTML = renderInventory(false, true);
+    };
+  } else if(b.type === 'warehouse'){
+    let optionsHtml = '';
+    for (const product in inventory) {
+      optionsHtml += `<option value="${product}">${product.charAt(0).toUpperCase() + product.slice(1)}</option>`;
+    }
+    
+    popupContent.innerHTML = `
+      <div class="row"><div>Buy Warehouse for $${WAREHOUSE_COST}</div><button id="buyWH">Buy</button></div>
+      <div class="row"><div>Inventory</div><div class="inventory-list">${renderInventory(true)}</div></div>
+      <div class="row" style="margin-top:10px;">
+        <div>Manage Warehouse Storage</div>
+        <div style="margin-bottom:5px;">
+          Product:
+          <select id="whProductSelect">
+            ${optionsHtml}
+          </select>
+        </div>
+        <button id="storeToWH">Store 1</button>
+        <button id="retrieveFromWH">Retrieve 1</button>
+      </div>
+    `;
+    popup.classList.remove('hidden');
+    document.getElementById('buyWH').onclick = () => { buyWarehouse(); openBuildingUI(b); };
+    document.getElementById('storeToWH').onclick = () => {
+      if (!warehouseOwned) { showStatus('You do not own the warehouse!'); return; }
+      const product = document.getElementById('whProductSelect').value;
+      const totalWH = Object.values(warehouseStorage).reduce((sum, qty) => sum + qty, 0);
+      if (totalWH >= WAREHOUSE_STORAGE_CAPACITY) { showStatus('Warehouse is full!'); return; }
+      if (inventory[product] > 0) {
+        inventory[product]--;
+        warehouseStorage[product]++;
+        showStatus(`Stored 1 ${product} in warehouse.`);
+      } else showStatus(`No ${product} in inventory to store.`);
+      popupContent.querySelector('.inventory-list').innerHTML = renderInventory(true);
+    };
+    document.getElementById('retrieveFromWH').onclick = () => {
+      if (!warehouseOwned) { showStatus('You do not own the warehouse!'); return; }
+      const product = document.getElementById('whProductSelect').value;
+      if (getTotalItems() >= INVENTORY_CAPACITY) { showStatus('Inventory is full!'); return; }
+      if (warehouseStorage[product] > 0) {
+        warehouseStorage[product]--;
+        inventory[product]++;
+        showStatus(`Retrieved 1 ${product} from warehouse.`);
+      } else showStatus(`No ${product} in warehouse to retrieve.`);
+      popupContent.querySelector('.inventory-list').innerHTML = renderInventory(true);
+    };
+  } else if(b.type === 'bank'){
+    popupContent.innerHTML = `
+      <div class="row"><div>Bank Balance: $${bankBalance.toFixed(0)}</div></div>
+      <div class="row"><div>Debt: $${debt.toFixed(0)}</div></div>
+      ${legalFees > 0 ? `<div class="row" style="color:var(--accent-red)">Outstanding Legal Fees: $${legalFees.toFixed(0)}</div>` : ''}
+      <div class="row"><div>Amount:</div><input id="bankAmt" type="number" value="100" min="0"></div>
+      <div class="row">
+        <button id="doDep" ${legalFees > 0 ? 'disabled' : ''}>Deposit</button>
+        <button id="doWith">Withdraw</button>
+        <button id="doPayDebt">Pay Debt</button>
+        ${legalFees > 0 ? `<button id="doPayFees">Pay Legal Fees</button>` : ''}
+      </div>
+      ${legalFees > 0 ? '<div style="color:var(--accent-red);font-size:12px;margin-top:10px">Cannot deposit while legal fees are outstanding</div>' : ''}
+    `;
+    popup.classList.remove('hidden');
+    document.getElementById('doDep').onclick = ()=>{
+      if (legalFees > 0) {
+        showStatus('Cannot deposit while legal fees are outstanding!');
+        return;
+      }
+      const v = Number(document.getElementById('bankAmt').value);
+      bankAction('deposit', v);
+      popup.classList.add('hidden');
+    };
+    document.getElementById('doWith').onclick = ()=>{ const v = Number(document.getElementById('bankAmt').value); bankAction('withdraw', v); popup.classList.add('hidden'); };
+    document.getElementById('doPayDebt').onclick = ()=>{ const v = Number(document.getElementById('bankAmt').value); bankAction('payDebt', v); popup.classList.add('hidden'); };
+
+    if (legalFees > 0) {
+      document.getElementById('doPayFees').onclick = ()=>{
+        const v = Number(document.getElementById('bankAmt').value);
+        bankAction('payFees', v);
+        popup.classList.add('hidden');
+      };
+    }
+  } else if(b.type === 'police'){
+    popupContent.innerHTML = `<div class="row"><div>Pay legal fees: $${legalFees.toFixed(0)}</div><button id="payFees">Pay</button></div><div style="font-size:12px;color:#ccc;margin-top:6px">Pay fees to restore full access.</div>`;
+    popup.classList.remove('hidden');
+    document.getElementById('payFees').onclick = ()=>{ payLegalFees(); popup.classList.add('hidden'); };
+  } else if(b.type === 'casino'){
+    popupContent.innerHTML = `<div class="row"><div>Simple gamble: bet amount to try double</div><input id="betAmt" type="number" value="50"></div><div style="text-align:right;margin-top:8px"><button id="doBet">Bet</button></div>`;
+    popup.classList.remove('hidden');
+    document.getElementById('doBet').onclick = ()=>{ const v = Number(document.getElementById('betAmt').value); gamble(v); popup.classList.add('hidden'); };
+  }
+}
+
+// Hire a dealer - Fixed to properly pass typeIndex
+function hireDealer(typeIndex) {
+  if (!warehouseOwned) {
+    showStatus('You need to buy the warehouse first!');
+    return;
+  }
+  
+  const dealerType = DEALER_TYPES[typeIndex];
+  
+  if (wallet < dealerType.cost) {
+    showStatus(`Not enough money to hire ${dealerType.name}!`);
+    return;
+  }
+  
+  // Check if already hired
+  if (hiredDealers.some(d => d.typeIndex === typeIndex)) {
+    showStatus(`You've already hired a ${dealerType.name}!`);
+    return;
+  }
+  
+  // Deduct cost and add to hired dealers
+  wallet -= dealerType.cost;
+  hiredDealers.push({
+    typeIndex: typeIndex,
+    name: dealerType.name,
+    commission: dealerType.commission
+  });
+  
+  // Spawn the dealer NPC with correct typeIndex
+  spawnDealer({
+    typeIndex: typeIndex,
+    name: dealerType.name,
+    commission: dealerType.commission
+  });
+  
+  showStatus(`Hired ${dealerType.name} for $${dealerType.cost}!`);
+}
+
+function bankAction(action, amount) {
+  if (amount <= 0) return showStatus('Invalid amount.');
+  switch(action) {
+    case 'deposit':
+      if (legalFees > 0) {
+        showStatus('Cannot deposit while legal fees are outstanding!');
+        return;
+      }
+      if (wallet >= amount) { wallet -= amount; bankBalance += amount; showStatus(`Deposited $${amount} to bank.`); } else showStatus('Not enough cash to deposit.');
+      break;
+    case 'withdraw':
+      if (bankBalance >= amount) { bankBalance -= amount; wallet += amount; showStatus(`Withdrew $${amount} from bank.`); } else showStatus('Not enough money in bank.');
+      break;
+    case 'payDebt':
+      if (debt <= 0) return showStatus('No debt to pay.');
+      let payment = Math.min(amount, debt);
+      if (wallet >= payment) { wallet -= payment; debt -= payment; showStatus(`Paid $${payment} towards debt.`); }
+      else if (wallet + bankBalance >= payment) {
+        const fromWallet = wallet; const fromBank = payment - wallet; wallet = 0; bankBalance -= fromBank; debt -= payment;
+        showStatus(`Paid $${payment} towards debt ($${fromWallet} from wallet, $${fromBank} from bank).`);
+      } else showStatus('Not enough funds to pay that amount.');
+      break;
+    case 'payFees':
+      if (legalFees <= 0) return showStatus('No legal fees to pay.');
+      let feePayment = Math.min(amount, legalFees);
+      if (wallet >= feePayment) { wallet -= feePayment; legalFees -= feePayment; showStatus(`Paid $${feePayment} towards legal fees.`); }
+      else if (wallet + bankBalance >= feePayment) {
+        const fromWallet = wallet; const fromBank = feePayment - wallet; wallet = 0; bankBalance -= fromBank; legalFees -= feePayment;
+        showStatus(`Paid $${feePayment} towards legal fees ($${fromWallet} from wallet, $${fromBank} from bank).`);
+      } else showStatus('Not enough funds to pay that amount.');
+
+      if (legalFees <= 0) {
+        legalFees = 0;
+        if(jailDaysLeft > 0) {
+          jailDaysLeft = 0;
+          player.x = PLAYER_HOUSE_X;
+          showStatus('Legal fees paid. You are free! Teleported home.', true);
+        } else {
+          showStatus('Legal fees paid. You are clear.');
+        }
+      }
+      break;
+  }
+}
+
+function renderInventory(withStore=false, withHouseStorage=false){
+  let html = '';
+  for (const product in inventory) {
+    html += `<div>${product.charAt(0).toUpperCase() + product.slice(1)}: ${inventory[product]}</div>`;
+  }
+  html += `<div>Total: ${getTotalItems()}/${INVENTORY_CAPACITY}</div><div>Wallet: $${wallet.toFixed(0)}</div>`;
+  if(withStore) {
+    html += `<hr><div>Warehouse: ${warehouseOwned ? 'Owned' : 'Not owned'}</div>`;
+    for (const product in warehouseStorage) {
+      html += `<div>Stored - ${product.charAt(0).toUpperCase() + product.slice(1)}: ${warehouseStorage[product]}</div>`;
+    }
+  }
+  if(withHouseStorage) {
+    html += `<hr><div>Player House Storage (20 items max):</div>`;
+    for (const product in playerHouseStorage) {
+      html += `<div>${product.charAt(0).toUpperCase() + product.slice(1)}: ${playerHouseStorage[product]}</div>`;
+    }
+    html += `<div>Total: ${getPlayerHouseStorageTotal()}/${PLAYER_HOUSE_STORAGE_CAPACITY}</div>`;
+  }
+  return html;
+}
+
+function buyWarehouse(){
+  if(warehouseOwned){
+    showStatus('You already own the warehouse.');
+    return;
+  }
+  if(wallet < WAREHOUSE_COST){
+    showStatus(`Not enough cash to buy warehouse ($${WAREHOUSE_COST}).`);
+    return;
+  }
+  wallet -= WAREHOUSE_COST;
+  warehouseOwned = true;
+  showStatus('Warehouse purchased. You now have extra storage.');
+}
+
+function payLegalFees(){
+  const total = legalFees;
+  if(total <= 0) {
+    showStatus('No legal fees outstanding.');
+    return;
+  }
+  const canPay = wallet + bankBalance;
+  if(canPay < total) {
+    showStatus('Not enough funds to pay legal fees.');
+    return;
+  }
+  if(wallet >= total){
+    wallet -= total;
+  } else {
+    const rem = total - wallet;
+    wallet = 0;
+    bankBalance -= rem;
+  }
+  legalFees = 0;
+  if(jailDaysLeft > 0) {
+    jailDaysLeft = 0;
+    player.x = PLAYER_HOUSE_X;
+    showStatus('Legal fees paid. You are free! Teleported home.', true);
+  } else {
+    showStatus('Legal fees paid. You are clear.');
+  }
+}
+
+function gamble(amount){
+  if(amount <= 0) return showStatus('Invalid bet.');
+  if(wallet < amount) return showStatus('Not enough cash to bet.');
+  wallet -= amount;
+  const win = Math.random() < 0.45;
+  if(win){
+    const prize = amount * 2;
+    wallet += prize;
+    showStatus(`You won $${prize}!`);
+  } else {
+    showStatus('You lost the bet.');
+  }
+}
+
+function saveGame(){
+  const data = { 
+    inventory, wallet, bankBalance, debt, warehouseOwned, warehouseStorage, 
+    playerHouseStorage, market, currentDay, dayElapsed, jailDaysLeft, legalFees, 
+    player, productsSoldToday, hiredDealers 
+  };
+  localStorage.setItem('drugwars_save', JSON.stringify(data));
+  showStatus('Game saved to localStorage.');
+}
+
+function loadGame(){
+  const raw = localStorage.getItem('drugwars_save');
+  if(!raw) return showStatus('No saved game found.');
+  try{
+    const d = JSON.parse(raw);
+    inventory = d.inventory || inventory;
+    wallet = d.wallet || wallet;
+    bankBalance = d.bankBalance || bankBalance;
+    debt = d.debt || debt;
+    warehouseOwned = d.warehouseOwned || warehouseOwned;
+    warehouseStorage = d.warehouseStorage || warehouseStorage;
+    playerHouseStorage = d.playerHouseStorage || playerHouseStorage;
+    market = d.market || market;
+    currentDay = d.currentDay || currentDay;
+    dayElapsed = d.dayElapsed || dayElapsed;
+    jailDaysLeft = d.jailDaysLeft || jailDaysLeft;
+    legalFees = d.legalFees || legalFees;
+    player = d.player || player;
+    productsSoldToday = d.productsSoldToday || 0;
+    hiredDealers = d.hiredDealers || [];
+    
+    // Respawn hired dealers
+    hiredDealers.forEach(dealer => {
+      spawnDealer(dealer);
+    });
+    
+    document.getElementById('popup').classList.add('hidden');
+    showStatus('Game loaded from localStorage.');
+  }catch(e){ showStatus('Failed to load save.'); }
+}
+
+function openBlackMarket(){
+  popupTitle.textContent = 'Black Market';
+  let marketHtml = '<div style="margin-bottom:10px">Current Prices:</div>';
+  for (const product in market) {
+    marketHtml += `
+      <div class="market-item">
+        <span class="item-name">${product.charAt(0).toUpperCase() + product.slice(1)}</span>
+        <span class="item-price">Buy: $${market[product].buy} | Sell: $${market[product].sell}</span>
+        <button class="item-buy-btn" data-item="${product}">Buy</button>
+      </div>
+    `;
+  }
+  marketHtml += `
+    <div style="margin-top:15px">
+      <div>Your Inventory: ${getTotalItems()}/${INVENTORY_CAPACITY}</div>
+      <div>Wallet: $${wallet}</div>
+    </div>
+  `;
+  popupContent.innerHTML = marketHtml;
+  popup.classList.remove('hidden');
+  document.querySelectorAll('.item-buy-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const item = e.target.getAttribute('data-item');
+      buyItem(item);
+    });
+  });
+}
+
+function buyItem(itemType) {
+  const price = market[itemType].buy;
+  const totalItems = getTotalItems();
+  if(totalItems >= INVENTORY_CAPACITY) { showStatus('Inventory is full!'); return; }
+  if(wallet < price) { showStatus('Not enough money!'); return; }
+  wallet -= price;
+  inventory[itemType]++;
+  showStatus(`Bought 1 ${itemType} for $${price}`);
+  openBlackMarket();
+}
+
+// New function: openHireDealersUI
+function openHireDealersUI() {
+  popupTitle.textContent = 'Hire Dealers';
+  let dealerCardsHtml = '';
+  DEALER_TYPES.forEach((dealer, index) => {
+    const isHired = hiredDealers.some(d => d.typeIndex === index);
+    dealerCardsHtml += `
+      <div class="dealer-card">
+        <h4>${dealer.name}</h4>
+        <div class="dealer-stats">
+          <span class="dealer-cost">Cost: $${dealer.cost}</span>
+          <span class="dealer-commission">Commission: ${dealer.commission}%</span>
+        </div>
+        ${isHired ? 
+          '<div class="dealer-hired">✓ Hired</div>' : 
+          `<button class="hire-dealer-btn" data-type="${index}" ${!warehouseOwned ? 'disabled' : ''}>
+            ${warehouseOwned ? 'Hire Dealer' : 'Need Warehouse'}
+          </button>`
+        }
+      </div>
+    `;
+  });
+  popupContent.innerHTML = `
+    <div class="row">
+      ${dealerCardsHtml}
+    </div>
+  `;
+  popup.classList.remove('hidden');
+
+
+    // Add jailed status and legal fees to each dealer
+// Extend hiredDealers objects with jailed: false, jailDays: 0, legalFees: 0
+
+// Modify dealerSellProduct to prevent jailed dealers from selling
+function dealerSellProduct(dealer) {
+  if (dealer.jailed) return; // Do not sell if jailed
+
+  // Existing selling logic...
+  const warehouseProducts = Object.keys(warehouseStorage).filter(p => warehouseStorage[p] > 0);
+  if (warehouseProducts.length === 0) return;
+  const product = warehouseProducts[Math.floor(Math.random() * warehouseProducts.length)];
+  const amount = Math.min(warehouseStorage[product], randint(1, 3));
+  if (amount <= 0) return;
+  const marketPrice = market[product].sell;
+  const commissionRate = dealer.commission / 100;
+  const totalPrice = amount * marketPrice;
+  const commission = totalPrice * commissionRate;
+  const playerEarnings = totalPrice - commission;
+  warehouseStorage[product] -= amount;
+  wallet += playerEarnings;
+  showStatus(`Dealer sold ${amount} ${product} for $${playerEarnings.toFixed(0)} (Commission: $${commission.toFixed(0)})`);
+}
+
+// New function to check if dealers get caught daily
+function checkDealersCaught() {
+  hiredDealers.forEach(dealer => {
+    if (dealer.jailed) return; // Already jailed, skip
+    if (Math.random() < 0.10) { // 10% chance caught
+      // Calculate legal fees: base $500 + $25 per product in warehouse
+      let totalProducts = 0;
+      for (const product in warehouseStorage) {
+        totalProducts += warehouseStorage[product];
+      }
+      const fees = 500 + (25 * totalProducts);
+      dealer.jailed = true;
+      dealer.jailDays = 7; // Jail for 7 days
+      dealer.legalFees = fees;
+      legalFees += fees; // Add to player's total legal fees
+      showStatus(`${dealer.name} got caught and jailed! Legal fees: $${fees}`, true);
+    }
+  });
+}
+
+// Update jail days for dealers daily, release when done
+function updateDealerJailDays() {
+  hiredDealers.forEach(dealer => {
+    if (dealer.jailed) {
+      dealer.jailDays--;
+      if (dealer.jailDays <= 0) {
+        dealer.jailDays = 0;
+        // Notify player dealer can be bailed out
+        showStatus(`${dealer.name} is ready to be bailed out at the Police Station.`, true);
+      }
+    }
+  });
+}
+
+// Modify nextDay to include dealer caught check and jail day update
+const originalNextDay = nextDay;
+nextDay = function() {
+  originalNextDay();
+  checkDealersCaught();
+  updateDealerJailDays();
+};
+
+// Modify openHireDealersUI to show jailed status and bail out button
+function openHireDealersUI() {
+  popupTitle.textContent = 'Hire Dealers';
+  let dealerCardsHtml = '';
+  DEALER_TYPES.forEach((dealerType, index) => {
+    const dealer = hiredDealers.find(d => d.typeIndex === index);
+    if (dealer) {
+      dealerCardsHtml += `
+        <div class="dealer-card">
+          <h4>${dealerType.name}</h4>
+          <div class="dealer-stats">
+            <span class="dealer-cost">Cost: $${dealerType.cost}</span>
+            <span class="dealer-commission">Commission: ${dealerType.commission}%</span>
+          </div>
+          ${dealer.jailed ? 
+            `<div class="dealer-hired" style="color: var(--accent-red);">Jailed (${dealer.jailDays} days left)</div>
+             <button class="bail-dealer-btn" data-type="${index}">Bail Out ($${dealer.legalFees})</button>` :
+            '<div class="dealer-hired">✓ Hired</div>'
+          }
+        </div>
+      `;
+    } else {
+      dealerCardsHtml += `
+        <div class="dealer-card">
+          <h4>${dealerType.name}</h4>
+          <div class="dealer-stats">
+            <span class="dealer-cost">Cost: $${dealerType.cost}</span>
+            <span class="dealer-commission">Commission: ${dealerType.commission}%</span>
+          </div>
+          <button class="hire-dealer-btn" data-type="${index}" ${!warehouseOwned ? 'disabled' : ''}>
+            ${warehouseOwned ? 'Hire Dealer' : 'Need Warehouse'}
+          </button>
+        </div>
+      `;
+    }
+  });
+  popupContent.innerHTML = `<div class="row">${dealerCardsHtml}</div>`;
+  popup.classList.remove('hidden');
+
+  // Hire dealer buttons
+  document.querySelectorAll('.hire-dealer-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const typeIndex = parseInt(e.target.getAttribute('data-type'));
+      hireDealer(typeIndex);
+      openHireDealersUI();
+    });
+  });
+
+  // Bail out buttons
+  document.querySelectorAll('.bail-dealer-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const typeIndex = parseInt(e.target.getAttribute('data-type'));
+      bailOutDealer(typeIndex);
+      openHireDealersUI();
+    });
+  });
+}
+
+// Bail out dealer function
+function bailOutDealer(typeIndex) {
+  const dealer = hiredDealers.find(d => d.typeIndex === typeIndex);
+  if (!dealer || !dealer.jailed) return;
+  if (wallet + bankBalance < dealer.legalFees) {
+    showStatus('Not enough funds to bail out dealer.');
+    return;
+  }
+  // Pay legal fees from wallet and bank
+  let remaining = dealer.legalFees;
+  if (wallet >= remaining) {
+    wallet -= remaining;
+    remaining = 0;
+  } else {
+    remaining -= wallet;
+    wallet = 0;
+    bankBalance -= remaining;
+  }
+  legalFees -= dealer.legalFees;
+  dealer.legalFees = 0;
+  dealer.jailed = false;
+  dealer.jailDays = 0;
+  showStatus(`${dealer.name} has been bailed out and is back to work!`);
+}
+
+
+  // Add event listeners for hire buttons
+  document.querySelectorAll('.hire-dealer-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const typeIndex = parseInt(e.target.getAttribute('data-type'));
+      hireDealer(typeIndex);
+      openHireDealersUI(); // Refresh UI
+    });
+  });
+}
+function testCaught() {
+  if(jailDaysLeft > 0) { showStatus('Player is already in jail.'); return; }
+  triggerPoliceChase();
+}
+
+resizeGameCanvasToContainer();
+requestAnimationFrame(tick);
+</script>
+
+</body>
+</html>
