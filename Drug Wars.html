@@ -394,7 +394,7 @@ Bridges: The only place to find customers and sell your product.`
     contentDiv.textContent = infoTexts[selected] || '';
   });
 </script>
-  
+
 </div>
 
 
@@ -406,7 +406,7 @@ Bridges: The only place to find customers and sell your product.`
       <div class="screen-badge">Drug Wars 2D: Made By Mr.SusBus</div>
     </div>
     <div class="calculator-buttons">
-      <button class="calc-btn function" data-action="enter-building">⤷ ENTER</button>      
+      <button class="calc-btn function" data-action="enter-building">⤷ ENTER</button>
       <button class="calc-btn function" data-action="market">🏴 BLACK MARKET</button>
       <!-- <button class="calc-btn function" data-action="warehouse">🗄️ WAREHOUSE</button> -->
       <button class="calc-btn function" data-action="hire-dealers">🧑‍🤝‍🧑 DEALERS</button>
@@ -502,7 +502,7 @@ document.addEventListener('keydown', startMusicOnInteraction);
 playRandomTrack();
 
 const skyBackground = new Image();
-skyBackground.onerror = function() { handleImageError(this); }; skyBackground.src = 'assets/sky_background.jpg'; 
+skyBackground.onerror = function() { handleImageError(this); }; skyBackground.src = 'assets/sky_background.jpg';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -656,6 +656,7 @@ let warehouseStorage = { weed: 0, ak47s: 0, cocaine: 0, heroin: 0, lsd: 0, shroo
 let warehouseOwned = false;
 let jailDaysLeft = 0;
 let legalFees = 0;
+let loansTakenThisWeek = 0;
 
 // Dealer system
 const DEALER_TYPES = [
@@ -722,10 +723,10 @@ function draw(){
   ctx.clearRect(0,0,viewportWidth,viewportHeight);
   const cam = calcCamera();
   const hour = Math.floor((dayElapsed / dayDuration) * 24);
-  
+
   ctx.fillStyle = getSkyColor(hour);
   ctx.fillRect(0,0,viewportWidth,viewportHeight);
-  
+
   if (isImageLoaded(skyBackground)) {
     ctx.globalAlpha = 0.7;
     ctx.drawImage(skyBackground, 0, 0, viewportWidth, viewportHeight);
@@ -833,7 +834,7 @@ function draw(){
         ctx.arc(nx + 16, sidewalkY - 45, 15, 0, Math.PI * 2);
         ctx.fill();
       }
-      
+
       // Fixed dealer skin selection with proper validation
       let npcAsset;
       if (n.type === 'police') {
@@ -847,7 +848,7 @@ function draw(){
         const skinIndex = typeof n.skinIndex === 'number' ? n.skinIndex : 0;
         npcAsset = npcNormalSkins[skinIndex % npcNormalSkins.length];
       }
-      
+
       if (isImageLoaded(npcAsset)) {
         ctx.save();
         if (n.dir === -1) {
@@ -859,8 +860,8 @@ function draw(){
         }
         ctx.restore();
       } else {
-        ctx.fillStyle = n.type==='police' ? '#0b5' : 
-                    n.type==='dealer' ? '#ff6b6b' : 
+        ctx.fillStyle = n.type==='police' ? '#0b5' :
+                    n.type==='dealer' ? '#ff6b6b' :
                     '#ffeb8f';
         ctx.fillRect(nx, sidewalkY - (sidewalkHeight / 2) - (characterHeight / 2), 32, characterHeight);
       }
@@ -961,17 +962,17 @@ function update(dt){
         }
       }
     }
-    
+
     // Update dealer positions
     if (n.type === 'dealer') {
       // Dealers walk up and down the sidewalk
       n.x += (n.dir * 40) * dt;
-      
+
       // Change direction randomly or when reaching edges
       if (Math.random() < 0.01 || n.x < 100 || n.x > WORLD_WIDTH - 100) {
         n.dir = n.dir * -1;
       }
-      
+
       // Occasionally try to sell to customers
       if (Math.random() < 0.005 && !n.selling) {
         n.selling = true;
@@ -1053,7 +1054,7 @@ function spawnNPC(){
 function spawnDealer(dealer) {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const startX = Math.random() * (WORLD_WIDTH - 200) + 100;
-  
+
   // Validate typeIndex and assign skinIndex properly
   const typeIndex = typeof dealer.typeIndex === 'number' ? dealer.typeIndex : 0;
   const skinIndex = typeIndex; // Use typeIndex as skinIndex for dealers
@@ -1067,7 +1068,7 @@ function spawnDealer(dealer) {
     selling: false,
     dealerData: dealer
   });
-  
+
   console.log(`Spawned dealer with typeIndex: ${typeIndex}, skinIndex: ${skinIndex}`);
 }
 
@@ -1113,7 +1114,7 @@ function triggerPoliceChase() {
       inPoliceChase = false;
       paused = false;
 
-      wallet = 0;
+      wallet = Math.floor(wallet / 2);
       legalFees += fine;
       for (const product in inventory) {
         inventory[product] = 0;
@@ -1382,35 +1383,39 @@ function closePopup(){ document.getElementById('popup').classList.add('hidden');
 function dealerSellProduct(dealer) {
   // Check if warehouse has products
   const warehouseProducts = Object.keys(warehouseStorage).filter(p => warehouseStorage[p] > 0);
-  
+
   if (warehouseProducts.length === 0) {
     return; // No products to sell
   }
-  
+
   // Select random product from warehouse
   const product = warehouseProducts[Math.floor(Math.random() * warehouseProducts.length)];
   const amount = Math.min(warehouseStorage[product], randint(1, 3));
-  
+
   if (amount <= 0) return;
-  
+
   // Calculate sale with dealer commission
   const marketPrice = market[product].sell;
   const commissionRate = dealer.dealerData.commission / 100;
   const totalPrice = amount * marketPrice;
   const commission = totalPrice * commissionRate;
   const playerEarnings = totalPrice - commission;
-  
+
   // Update warehouse and wallet
   warehouseStorage[product] -= amount;
   wallet += playerEarnings;
-  
+
   // Show status message
   showStatus(`Dealer sold ${amount} ${product} for $${playerEarnings.toFixed(0)} (Commission: $${commission.toFixed(0)})`);
 }
 
 function nextDay(){
   currentDay++; productsSoldToday = 0;
-  if (currentDay % 7 === 0) { debt = Math.round(debt * 1.1); showStatus("Weekly interest added to your debt!", true); }
+  if (currentDay % 7 === 0) { 
+    debt = Math.round(debt * 1.1); 
+    loansTakenThisWeek = 0;
+    showStatus("Weekly interest added to your debt! Loan limit reset.", true); 
+  }
   for(const item of Object.keys(market)){
     const buyChange = rand(-0.2, 0.25);
     const sellChange = rand(-0.15, 0.2);
@@ -1451,12 +1456,12 @@ function handleCalcButtonAction(action, el) {
     case 'warehouse': openBuildingUI(buildings.find(b=>b.type==='warehouse')); break;
     case 'bank': openBuildingUI(buildings.find(b=>b.type==='bank')); break;
     case 'hire-dealers': openHireDealersUI(); break;
-    case 'sleep': 
+    case 'sleep':
       // Check if player is in jail or next to house
       const isNearHouse = Math.abs(PLAYER_HOUSE_X - player.x) < 120;
       if (jailDaysLeft > 0 || isNearHouse) {
-        nextDay(); 
-        showStatus('You slept and advanced one day.'); 
+        nextDay();
+        showStatus('You slept and advanced one day.');
       } else {
         showStatus('You can only sleep at home or in jail.');
       }
@@ -1596,7 +1601,7 @@ function openBuildingUI(b){
     for (const product in inventory) {
       optionsHtml += `<option value="${product}">${product.charAt(0).toUpperCase() + product.slice(1)}</option>`;
     }
-    
+
     popupContent.innerHTML = `
       <div class="row"><div>Buy Warehouse for $${WAREHOUSE_COST}</div><button id="buyWH">Buy</button></div>
       <div class="row"><div>Inventory</div><div class="inventory-list">${renderInventory(true)}</div></div>
@@ -1642,6 +1647,13 @@ function openBuildingUI(b){
       <div class="row"><div>Bank Balance: $${bankBalance.toFixed(0)}</div></div>
       <div class="row"><div>Debt: $${debt.toFixed(0)}</div></div>
       ${legalFees > 0 ? `<div class="row" style="color:var(--accent-red)">Outstanding Legal Fees: $${legalFees.toFixed(0)}</div>` : ''}
+      <div class="row">
+        <print>1 Loan PRE Week</print><br>
+        <button id="loan500">Take $500 Loan</button>
+        <button id="loan1000">Take $1000 Loan</button>
+        <button id="loan1500">Take $1500 Loan</button>
+      </div>
+
       <div class="row"><div>Amount:</div><input id="bankAmt" type="number" value="100" min="0"></div>
       <div class="row">
         <button id="doDep" ${legalFees > 0 ? 'disabled' : ''}>Deposit</button>
@@ -1663,6 +1675,55 @@ function openBuildingUI(b){
     };
     document.getElementById('doWith').onclick = ()=>{ const v = Number(document.getElementById('bankAmt').value); bankAction('withdraw', v); popup.classList.add('hidden'); };
     document.getElementById('doPayDebt').onclick = ()=>{ const v = Number(document.getElementById('bankAmt').value); bankAction('payDebt', v); popup.classList.add('hidden'); };
+
+    document.getElementById('loan500').onclick = () => {
+      if (jailDaysLeft > 0 || legalFees > 0) {
+        showStatus('Cannot take loans while in jail or with legal fees!');
+        return;
+      }
+      if (loansTakenThisWeek >= 1) {
+        showStatus('You can only take 1 loan per week!');
+        return;
+      }
+      wallet += 500;
+      debt += 500;
+      loansTakenThisWeek++;
+      showStatus('Took a $500 loan from the bank.');
+      updateHUD();
+      openBuildingUI(b);
+    };
+    document.getElementById('loan1000').onclick = () => {
+      if (jailDaysLeft > 0 || legalFees > 0) {
+        showStatus('Cannot take loans while in jail or with legal fees!');
+        return;
+      }
+      if (loansTakenThisWeek >= 1) {
+        showStatus('You can only take 1 loan per week!');
+        return;
+      }
+      wallet += 1000;
+      debt += 1000;
+      loansTakenThisWeek++;
+      showStatus('Took a $1000 loan from the bank.');
+      updateHUD();
+      openBuildingUI(b);
+    };
+    document.getElementById('loan1500').onclick = () => {
+      if (jailDaysLeft > 0 || legalFees > 0) {
+        showStatus('Cannot take loans while in jail or with legal fees!');
+        return;
+      }
+      if (loansTakenThisWeek >= 1) {
+        showStatus('You can only take 1 loan per week!');
+        return;
+      }
+      wallet += 1500;
+      debt += 1500;
+      loansTakenThisWeek++;
+      showStatus('Took a $1500 loan from the bank.');
+      updateHUD();
+      openBuildingUI(b);
+    };
 
     if (legalFees > 0) {
       document.getElementById('doPayFees').onclick = ()=>{
@@ -1688,20 +1749,20 @@ function hireDealer(typeIndex) {
     showStatus('You need to buy the warehouse first!');
     return;
   }
-  
+
   const dealerType = DEALER_TYPES[typeIndex];
-  
+
   if (wallet < dealerType.cost) {
     showStatus(`Not enough money to hire ${dealerType.name}!`);
     return;
   }
-  
+
   // Check if already hired
   if (hiredDealers.some(d => d.typeIndex === typeIndex)) {
     showStatus(`You've already hired a ${dealerType.name}!`);
     return;
   }
-  
+
   // Deduct cost and add to hired dealers
   wallet -= dealerType.cost;
   hiredDealers.push({
@@ -1709,14 +1770,14 @@ function hireDealer(typeIndex) {
     name: dealerType.name,
     commission: dealerType.commission
   });
-  
+
   // Spawn the dealer NPC with correct typeIndex
   spawnDealer({
     typeIndex: typeIndex,
     name: dealerType.name,
     commission: dealerType.commission
   });
-  
+
   showStatus(`Hired ${dealerType.name} for $${dealerType.cost}!`);
 }
 
@@ -1844,10 +1905,10 @@ function gamble(amount){
 }
 
 function saveGame(){
-  const data = { 
-    inventory, wallet, bankBalance, debt, warehouseOwned, warehouseStorage, 
-    playerHouseStorage, market, currentDay, dayElapsed, jailDaysLeft, legalFees, 
-    player, productsSoldToday, hiredDealers 
+  const data = {
+    inventory, wallet, bankBalance, debt, warehouseOwned, warehouseStorage,
+    playerHouseStorage, market, currentDay, dayElapsed, jailDaysLeft, legalFees,
+    player, productsSoldToday, hiredDealers
   };
   localStorage.setItem('drugwars_save', JSON.stringify(data));
   showStatus('Game saved to localStorage.');
@@ -1873,12 +1934,12 @@ function loadGame(){
     player = d.player || player;
     productsSoldToday = d.productsSoldToday || 0;
     hiredDealers = d.hiredDealers || [];
-    
+
     // Respawn hired dealers
     hiredDealers.forEach(dealer => {
       spawnDealer(dealer);
     });
-    
+
     document.getElementById('popup').classList.add('hidden');
     showStatus('Game loaded from localStorage.');
   }catch(e){ showStatus('Failed to load save.'); }
@@ -1936,8 +1997,8 @@ function openHireDealersUI() {
           <span class="dealer-cost">Cost: $${dealer.cost}</span>
           <span class="dealer-commission">Commission: ${dealer.commission}%</span>
         </div>
-        ${isHired ? 
-          '<div class="dealer-hired">✓ Hired</div>' : 
+        ${isHired ?
+          '<div class="dealer-hired">✓ Hired</div>' :
           `<button class="hire-dealer-btn" data-type="${index}" ${!warehouseOwned ? 'disabled' : ''}>
             ${warehouseOwned ? 'Hire Dealer' : 'Need Warehouse'}
           </button>`
@@ -2032,7 +2093,7 @@ function openHireDealersUI() {
             <span class="dealer-cost">Cost: $${dealerType.cost}</span>
             <span class="dealer-commission">Commission: ${dealerType.commission}%</span>
           </div>
-          ${dealer.jailed ? 
+          ${dealer.jailed ?
             `<div class="dealer-hired" style="color: var(--accent-red);">Jailed (${dealer.jailDays} days left)</div>
              <button class="bail-dealer-btn" data-type="${index}">Bail Out ($${dealer.legalFees})</button>` :
             '<div class="dealer-hired">✓ Hired</div>'
